@@ -1,0 +1,356 @@
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="mostly-resource.html">
+<script src="../../jsonic/jsonic.js"></script>
+
+<!--
+`mostly-page-provider` performs queries on the repository and provides paginated results.
+
+    <mostly-page-provider auto
+            query="select * from Document"
+            page-size="5"
+            sort="updatedAt">
+    </mostly-page-provider>
+
+    <mostly-page-provider auto
+            provider="users"
+            page-size="25">
+    </mostly-page-provider>
+
+`query` is a GraphQL expression, `provider` is a RESTful endpoint name.
+
+`sort` is a jsonic abbreviated json syntax.
+
+With `auto` set to `true`, results are fetched whenever
+the `provider`, `query`, `params`, `page` or `pageSize` properties are changed.
+
+You can fetch results explicitly by calling `fetch` on the
+element.
+
+@group Mostly Elements
+@element mostly-page-provider
+-->
+<dom-module id="mostly-page-provider">
+  <template>
+    <style>
+      :host {
+        display: none;
+      }
+    </style>
+
+    <mostly-resource id="nxResource"
+            connection-id="[[connectionId]]"
+            path="{{path}}"
+            enrichers="{{enrichers}}"
+            schemas="[[schemas]]"
+            headers="{{headers}}">
+    </mostly-resource>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'mostly-page-provider',
+      properties: {
+
+        /* The id of a mostly-connection to use. */
+        connectionId: {
+          type: String,
+          value: ''
+        },
+
+        /**
+         * If true, automatically execute the operation when either `provider` or `params` changes.
+         */
+        auto: {
+          type: Boolean,
+          value: false
+        },
+
+        /**
+         * The delay in milliseconds to debounce the auto fetch call when provider, params, etc. changes.
+         */
+        autoDelay: {
+          type: Number,
+          value: 300
+        },
+
+        /**
+         * The id of a page provider.
+         */
+        provider: {
+          type: String,
+          value: ''
+        },
+
+        /**
+         * The query.
+         */
+        query: {
+          type: String,
+          value: ''
+        },
+
+        /**
+         * Computed path of the query endpoint to use.
+         */
+        path: {
+          type: String,
+          computed: '_computePath(provider, query)'
+        },
+
+        /**
+         * The query parameters.
+         */
+        params: {
+          type: Object,
+          value: {}
+        },
+
+        /**
+         * The number of results per page.
+         */
+        pageSize: {
+          type: Number,
+          value: 10
+        },
+
+        /**
+         * The current page.
+         */
+        page: {
+          type: Number,
+          value: 1
+        },
+
+        /**
+         * The current page entries.
+         */
+        currentPage: {
+          type: Array,
+          value: [],
+          notify: true
+        },
+
+        /**
+         * Map of properties and direction 'asc' / 'desc'
+         */
+        sort: {
+          type: Object,
+          value: {},
+          notify: true
+        },
+
+        /**
+         * Total number of pages.
+         */
+        numberOfPages: {
+          type: Number,
+          notify: true
+        },
+
+        /**
+         * Total number of results.
+         */
+        resultsCount: {
+          type: Number,
+          notify: true
+        },
+
+        /**
+         * Aggregations returned.
+         */
+        aggregations: {
+          type: Object,
+          value: {},
+          notify: true
+        },
+
+        /**
+         * Quick filters state.
+         */
+        quickFilters: {
+          type: Array,
+          notify: true
+        },
+
+        /**
+         * Returns true if a next page is available.
+         */
+        isNextPageAvailable: {
+          type: Boolean,
+          value: false,
+          notify: true
+        },
+
+        /**
+         * Current page's size
+         */
+        currentPageSize: {
+          type: Number,
+          notify: true
+        },
+
+        /**
+         * List of content enrichers to use.
+         */
+        enrichers: {
+          type: String,
+          value: ''
+        },
+
+        /**
+         * List of comma separated values of the document schemas to be returned.
+         * All document schemas are returned by default.
+         */
+        schemas: {
+          type: String
+        },
+
+        /**
+         * The headers of the request.
+         * 'Accept': 'application/json' is already set by default.
+         */
+        headers: {type: Object, value: null},
+
+        /**
+         * Fetch the aggregate bucket's key if it matches a user
+         * or directory entry and translate directory label.
+         */
+        fetchAggregates: {
+          type: String,
+          observer: '_fetchAggregatesChanged'
+        },
+
+        /**
+         * True while requests are in flight.
+         */
+        loading: {
+          type: Boolean,
+          notify: true,
+          readOnly: true
+        }
+      },
+
+      observers: [
+        '_autoFetch(auto, provider, query, params.*, pageSize, page, sort)'
+      ],
+
+      /**
+       * Fetch the currentPage.
+       *
+       * @method fetch
+       */
+      fetch: function() {
+        var params = {};
+
+        if (this.query) {
+          params.query = this.query;
+        } else {
+          params = Object.assign(params, {
+            $skip: (this.page - 1) * this.pageSize,
+            $limit: this.pageSize
+          });
+          // TODO axio's way to send object array?
+          if (this.sort) {
+            var sort = this.sort;
+            if (typeof this.sort === 'string') {
+              sort = jsonic(this.sort);
+            }
+            Object.entries(sort).forEach(([key, value]) => {
+              params['$sort[' + key + ']'] = value;
+            });
+          }
+        }
+
+        if (this.params) {
+          Object.keys(this.params).forEach(key => {
+            if (typeof this.params[key] === "string") {
+              params[key] = this.params[key];
+            } else {
+              params[key] = JSON.stringify(this.params[key]);
+            }
+          });
+        }
+
+        // Append quick filters if any
+        if (this.quickFilters) {
+          var retainedFilters = [];
+          for (var i = 0; i < this.quickFilters.length; i++) {
+            if (this.quickFilters[i].active === true) {
+              retainedFilters.push(this.quickFilters[i].name);
+            }
+          }
+          params['quickFilters'] = retainedFilters.join(',');
+        }
+
+        this.$.nxResource.params = params;
+        return this.$.nxResource.execute()
+          .then((response) => {
+            var data = response.data;
+            var metadata = response.metadata;
+            this.currentPage = data.slice(0);
+            this.numberOfPages = Math.floor(metadata.total / metadata.limit);
+            this.resultsCount = metadata.total;
+            this.aggregations = metadata.aggregations;
+            this.quickFilters = metadata.quickFilters;
+            this.isNextPageAvailable = metadata.skip + metadata.limit < metadata.total;
+            this.currentPageSize = metadata.limit;
+            this.fire('update');
+            return response;
+          }).catch((err) => {
+            this.fire('error', { error : err });
+          });
+      },
+
+      get _sortKeys() {
+        return Object.keys(this.sort);
+      },
+
+      get _sortValues() {
+        return this._sortKeys.map(k => this.sort[k]);
+      },
+
+      _autoFetch: function () {
+        // Reset the page if the query changes
+        if (this.$.nxResource.params
+            && this.query
+            && this.query.length === 0
+            && (this.query !== this.$.nxResource.params.query)) {
+          this.page = 1;
+        }
+        if (this.auto && (this.query || this.provider)) {
+          // debounce in case of multiple param changes
+          this.debounce('_autoFetch', () => {
+            this.fetch();
+          }, this.autoDelay);
+        }
+      },
+
+      _computePath: function(provider, query) {
+        var path = '';
+        if (query) {
+          path = '/graphql';
+        } else if (provider) {
+          path = '/' + provider;
+        }
+        return path;
+      },
+
+      _fetchAggregatesChanged: function() {
+        this.headers = this.headers || {};
+        if (this.fetchAggregates) {
+          this.headers['enrichers-aggregate'] = this.fetchAggregates;
+        } else {
+          delete this.headers['enrichers-aggregate'];
+        }
+      },
+
+      ready: function() {
+        this.$.nxResource.addEventListener('loading-changed', () => {
+          this._setLoading(this.$.nxResource.loading);
+        });
+      }
+
+    });
+  </script>
+
+</dom-module>

@@ -1,0 +1,212 @@
+<link rel="import" href="../../polymer/polymer.html">
+<script src="../../axios/dist/axios.js"></script>
+<script src="../../promise-queue/lib/index.js"></script>
+<script src="blob.js"></script>
+<script src="batch-upload.js"></script>
+<script src="operation.js"></script>
+
+<!--
+`mostly-connection` wraps a `mostly.Client`.
+
+    <mostly-connection
+        id="nx_connection"
+        url="http://demo.mostlyjs.com"
+        username="Administrator"
+        password="Administrator"></mostly-connection>
+
+Note: Elements that depend on a connectionId use `nx` as default.
+
+@group Mostly UI
+@element mostly-connection
+@homepage http://www.mostlyjs.org
+-->
+<dom-module id="mostly-connection">
+  <template>
+    <style>
+      :host {
+        display: none;
+      }
+    </style>
+  </template>
+</dom-module>
+<script>
+  (function() {
+    // A global map of clients with connectionId as key.
+    // This map is shared between all instances of mostly-connection.
+    var axClients = {};
+
+    Polymer({
+      is: 'mostly-connection',
+      properties: {
+        /* A unique identifier for this connection. */
+        connectionId: {type: String, value: 'nx'},
+
+        /* The base URL of the Nuxeo server. */
+        url: {type: String, value: ''},
+
+        /* The username. */
+        username: {type: String, value: null},
+
+        /* The password. */
+        password: {type: String, value: null},
+
+        /* The current user entity */
+        user: {type: Object, readOnly: true, notify: true}
+      },
+
+      /**
+       * Fired when the client is connected.
+       *
+       * @event connected
+       */
+      ready: function() {
+        this.connect();
+      },
+
+      /**
+       * Connects mostly authentication.
+       */
+      connect: function() {
+        // Create the client if needed
+        // If we already have a client with the same connection info just keep it
+        var id = (this.connectionId) ? this.connectionId : Object.keys(axClients)[0];
+        this.client = axClients[id];
+
+        if (this.client) {
+          // if this instance does not have any properties set properties from the client
+          if (!this.url && !this.username && !this.password) {
+            this.url = this.client.defaults.baseURL;
+            this.username = this.client._username;
+            this.password = this.client._password;
+          }
+          // if properties match the existing client use it
+          if (this.client.defaults.baseURL === this.url &&
+            this.client._username === this.username &&
+            this.client._password === this.password) {
+            // return the stored connection request promise and chain _handleConnected to update instance properties
+            return this.client._promise.then(this._handleConnected.bind(this));
+          } else {
+            // otherwise override the client with the new properties
+            // e.g. username switched, password changed
+            this.client = null;
+          }
+        } else {
+          var options = {
+            baseURL: this.url,
+            timeout: 1000
+          };
+          this.client = axios.create(options);
+
+          // batch upload helper
+          this.client.batchUpload = (opts = {}) => {
+            let options = Object.assign({ client: this.client }, opts);
+            return new BatchUpload(options);
+          };
+
+          // operation helper
+          this.client.operation = (opts = {}) => {
+            let options = Object.assign({ client: this.client }, opts);
+            return new Operation(options);
+          };
+          
+          axClients[id] = this.client;
+        }
+        
+        // share the login promise between all instances (one per client)
+        this.client._promise = this.client.post('authentication', {
+          strategy: 'local',
+          username: this.username,
+          password: this.password
+        }).then(resp => {
+          //console.log('authentication', resp);
+          if (resp.data && resp.data.data && resp.data.data.accessToken) {
+            // save accessToken
+            this.client.defaults.headers.common['Authorization'] = resp.data.data.accessToken;
+          } else {
+            console.log('authentication failed: ', resp);
+            throw 'authentication failed';
+          }
+          return this.client.get('users/me');
+        }).then(resp => {
+          if (resp.data && resp.data.data) {
+            console.log('current user: ', resp.data.data);
+            return resp.data.data;
+          } else {
+            console.log('user not exists: ', resp);
+            throw 'user not exists';
+          }
+        })
+        .catch(error => {
+          console.log('Mostly connection refused: ' + error);
+          throw error;
+        });
+
+        // add a response status interceptor
+        this.client.interceptors.response.use(function (response) {
+          if (response.data && response.data.status !== 0) {
+            return Promise.reject({
+              status: response.data.status,
+              message: response.data.message
+            });
+          }
+          return response;
+        }, Promise.reject);
+
+        return this.client._promise
+          .then(this._handleConnected.bind(this));
+      },
+
+      /**
+       *  Returns true if client is connected.
+       *  @type {Boolean}
+       */
+      get connected() {
+        return this.client && this.client.connected;
+      },
+
+      /**
+       * Returns true if there are active requests.
+       * @type {Boolean}
+       */
+      get active() {
+        return this.client && this.client._activeRequests > 0;
+      },
+
+
+      _handleConnected: function(user) {
+        if (this.client) {
+          this._setUser(user);
+          this.fire('connected');
+        }
+        return user;
+      },
+
+      /**
+       * Returns a request object that allows REST requests
+       */
+      request: function() {
+        return this.connect().then(() => {
+          return this.client.request;
+        });
+      },
+
+      /**
+       * Returns an operation object that allows operations to be executed
+       */
+      operation: function(url, op) {
+        return this.connect().then(() => {
+          return this.client.operation({ url: url, action: op })
+        });
+      },
+
+      /**
+       * Returns an object that allows blobs to be uploaded
+       */
+      batchUpload: function(url) {
+        return this.connect().then(() => {
+          return this.client.batchUpload({ url: url });
+        });
+      }
+    });
+  })();
+</script>

@@ -36,7 +36,7 @@
         margin-right: 0.4em;
       }
 
-      nuxeo-data-table, nuxeo-tasks-list, nuxeo-tasks-list ::content nuxeo-data-list {
+      mostly-data-table, mostly-processes-list, mostly-processes-list ::content mostly-data-list {
         height: 350px !important;
       }
 
@@ -55,75 +55,78 @@
       <div class="content">
         <section name="dashboard" class="flex-layout">
 
-          <!-- recently edited
+          <!-- microservice processes -->
           <paper-card>
-            <h3><iron-icon icon="mostly:edit" name="Latest Documents Edited"></iron-icon>[[i18n('home.latestDocumentsEdited')]]</h3>
-            <nuxeo-page-provider auto
-              id="latestQuery"
+            <h3><iron-icon icon="mostly:edit" name="Processes"></iron-icon>[[i18n('home.processes')]]</h3>
+            <mostly-page-provider auto
+              id="statsProcesses"
               page-size="20"
-              provider="domain_documents"
-              schemas="dublincore,common,uid"
-              enrichers="thumbnail"
-              params='{"queryParams": "/"}'
-              headers='{"X-NXfetch.document": "properties"}'>
-            </nuxeo-page-provider>
-            <nuxeo-data-table id="latestEditedDocs"
-              nx-provider="latestQuery"
+              provider="processes-stats"
+              schemas="app,rss,uptime"
+              sort='app:1'>
+            </mostly-page-provider>
+            <mostly-data-table id="processList"
+              nx-provider="statsProcesses"
               empty-label="[[i18n('queryWidget.noDocuments')]]"
               on-row-clicked="_navigate">
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" flex="100">
+              <mostly-data-table-column name="[[i18n('statsProcesses.datatable.header.app')]]" flex="100">
                 <template>
                   <nuxeo-thumbnail document="[[item]]"></nuxeo-thumbnail>
-                  <a class="ellipsis" href$="[[urlFor('browse', item.path)]]">[[item.title]]</a>
+                  <a class="ellipsis" href$="[[urlFor('service', item.app)]]">[[item.app]]</a>
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.modified')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('statsProcesses.datatable.header.eventLoopDelay')]]" flex="50">
                 <template>
-                  <nuxeo-date datetime="[[item.properties.dc:modified]]" format="relative"></nuxeo-date>
+                  [[item.eventLoopDelay]]
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.lastContributor')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('statsProcesses.datatable.header.ts')]]" flex="50">
                 <template>
-                  <nuxeo-user-tag user="[[item.properties.dc:lastContributor]]"></nuxeo-user-tag>
+                  <nuxeo-date datetime="[[item.ts]]" format="relative"></nuxeo-date>
                 </template>
-              </nuxeo-data-table-column>
-            </nuxeo-data-table>
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('statsProcesses.datatable.header.uptime')]]" flex="50">
+                <template>
+                  [[item.uptime]]
+                </template>
+              </mostly-data-table-column>
+            </mostly-data-table>
           </paper-card>
-           -->
-          <!-- tasks
+           
+          <!-- processes -->
           <paper-card>
-            <h3><iron-icon icon="nuxeo:tasks" name="Tasks"></iron-icon>[[i18n('home.tasks')]]</h3>
-            <nuxeo-tasks-list id="taskLists" tasks="[[tasks]]"></nuxeo-tasks-list>
+            <h3><iron-icon icon="nuxeo:tasks" name="Processes"></iron-icon>[[i18n('home.processes')]]</h3>
+            <mostly-processes-list id="processLists" processes="[[processes]]"></mostly-processes-list>
           </paper-card>
-           -->
-          <!-- recently viewed
+           
+          <!-- recently viewed -->
           <paper-card>
             <h3><iron-icon icon="nuxeo:recent" name="Recently Viewed"></iron-icon>[[i18n('app.recentlyViewed')]]</h3>
-            <nuxeo-document-storage id="recentStorage" name="nuxeo-recent-documents" documents="{{recentDocuments}}"></nuxeo-document-storage>
-            <nuxeo-data-table id="latestViewedDocs"
+            <playing-document-storage id="recentStorage" name="nuxeo-recent-documents" documents="{{recentDocuments}}"></playing-document-storage>
+            <mostly-data-table id="latestViewedDocs"
               items="[[recentDocuments]]"
               empty-label="[[i18n('recentDocuments.empty')]]"
               empty-label-when-filtered="[[i18n('recentDocuments.empty')]]"
               on-row-clicked="_navigate">
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" flex="100">
+              <mostly-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" flex="100">
                 <template>
                   <nuxeo-document-thumbnail document="[[item]]"></nuxeo-document-thumbnail>
                   <a class="ellipsis" href$="[[urlFor('browse', item.path)]]">[[item.title]]</a>
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('recentDocumentsTable.type')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('recentDocumentsTable.type')]]" flex="50">
                 <template>
                   [[item.type]]
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('recentDocumentsTable.lastViewed')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('recentDocumentsTable.lastViewed')]]" flex="50">
                 <template>
                   <nuxeo-date datetime="[[item.lastViewed]]" format="relative"></nuxeo-date>
                 </template>
-              </nuxeo-data-table-column>
-            </nuxeo-data-table>
+              </mostly-data-table-column>
+            </mostly-data-table>
           </paper-card>
-           -->
+          
           <!-- favorites
           <paper-card>
             <h3><iron-icon icon="nuxeo:favorites" name="Favorites"></iron-icon>[[i18n('home.favorites')]]</h3>
@@ -135,40 +138,40 @@
                headers='{"X-NXfetch.document": "properties"}'
                enrichers="thumbnail">
             </nuxeo-page-provider>
-            <nuxeo-data-table
+            <mostly-data-table
               id="favoriteDocs"
               nx-provider="favoritesProvider"
               empty-label="[[i18n('favorites.empty')]]"
               on-row-clicked="_navigate">
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" flex="100">
+              <mostly-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" flex="100">
                 <template>
                   <nuxeo-document-thumbnail document="[[item]]"></nuxeo-document-thumbnail>
                   <a class="ellipsis" href$="[[urlFor('browse', item.path)]]">[[item.title]]</a>
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.modified')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('documentContentView.datatable.header.updatedAt')]]" flex="50">
                 <template>
-                  <nuxeo-date datetime="[[item.properties.dc:modified]]" format="relative"></nuxeo-date>
+                  <nuxeo-date datetime="[[item.updatedAt]]" format="relative"></nuxeo-date>
                 </template>
-              </nuxeo-data-table-column>
-              <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.lastContributor')]]" flex="50">
+              </mostly-data-table-column>
+              <mostly-data-table-column name="[[i18n('documentContentView.datatable.header.lastContributor')]]" flex="50">
                 <template>
-                  <nuxeo-user-tag user="[[item.properties.dc:lastContributor]]"></nuxeo-user-tag>
+                  <nuxeo-user-tag user="[[item.lastContributor]]"></nuxeo-user-tag>
                 </template>
-              </nuxeo-data-table-column>
-            </nuxeo-data-table>
+              </mostly-data-table-column>
+            </mostly-data-table>
           </paper-card>
            -->
         </section>
       </div>
-    </nuxeo-page>
+    </mostly-page>
 
   </template>
 
   <script>
     Polymer({
       is: 'mostly-home',
-      behaviors: [Nuxeo.RoutingBehavior, Nuxeo.FormatBehavior],
+      behaviors: [Mostly.I18nBehavior, Mostly.RoutingBehavior, Mostly.FormatBehavior],
       properties: {
         visible: {
           type: Boolean,
@@ -185,7 +188,7 @@
       _refresh: function() {
         this.$.latestQuery.fetch();
         this._fetchFavorite().then(function(favorite) {
-          this.$.favoritesProvider.params = [favorite.uid];
+          this.$.favoritesProvider.params = [favorite.id];
           this.$.favoritesProvider.page = 1;
           this.$.favoritesProvider.fetch();
         }.bind(this));

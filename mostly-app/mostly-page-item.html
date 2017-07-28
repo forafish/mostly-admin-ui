@@ -1,0 +1,61 @@
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="../behaviors/mostly-i18n-behavior.html">
+<link rel="import" href="../behaviors/mostly-routing-behavior.html">
+
+<!--
+`mostly-page-item`
+@group Mostly UI
+@element mostly-page-item
+-->
+<dom-module id="mostly-page-item">
+  <template>
+
+    <style>
+      :host {
+        outline: none;
+        user-select: none;
+        border-radius: 16px;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: var(--nuxeo-app-header);
+        margin: 0 0 0 8px;
+        padding: 5px 16px;
+        border: 1px solid var(--nuxeo-app-header-pill);
+      }
+
+      :host:hover {
+        border: 1px solid var(--nuxeo-app-header-pill-hover);
+      }
+
+      :host.iron-selected {
+        border: 1px solid var(--nuxeo-app-header-pill-active);
+      }
+    </style>
+
+    <div>[[i18n(label)]]</div>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'mostly-page-item',
+      behaviors: [Mostly.I18nBehavior],
+      properties: {
+
+        /**
+         * Item name
+         */
+        name: {
+          type: String
+        },
+
+        /**
+         * The 18n label key
+         */
+        label: {
+          type: String
+        }
+      }
+    });
+  </script>
+</dom-module>

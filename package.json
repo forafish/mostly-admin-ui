@@ -1,11 +1,8 @@
 {
-  "name": "nuxeo-web-ui",
-  "description": "Nuxeo Web UI",
-  "version": "0.8.0",
-  "homepage": "http://www.nuxeo.com",
-  "license": "Apache-2.0",
-  "vendor": "Nuxeo",
-  "private": true,
+  "name": "mostly-elements",
+  "description": "Admin web components for Mostly microservices ",
+  "version": "1.0.1",
+  "license": "MIT",
   "devDependencies": {
     "browser-sync": "^2.10.0",
     "connect-history-api-fallback": "^1.1.0",
@@ -34,6 +31,7 @@
     "gulp-useref": "^3.0.3",
     "gulp-vulcanize": "^6.1.0",
     "merge-stream": "^1.0.0",
+    "polymer-cli": "^1.0.0",
     "proxy-middleware": "^0.15.0",
     "require-dir": "^0.3.0",
     "run-sequence": "^1.1.5",
@@ -44,14 +42,6 @@
   "scripts": {
     "test": "gulp test:local",
     "start": "gulp serve",
-    "lint": "gulp lint"
-  },
-  "engines": {
-    "node": ">=0.10.0"
-  },
-  "nuxeo": {
-    "platforms": [
-      "cap-8.2-SNAPSHOT"
-    ]
+    "lint": "gulp lint && polymer lint -i elements/*/*.html"
   }
 }
